@@ -1,4 +1,4 @@
-export function bubbleSort(numbers: number[]): number[] {
+export function bubbleSort(numbers) {
     const result = [...numbers];
     const n = result.length;
 

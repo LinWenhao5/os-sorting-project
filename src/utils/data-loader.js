@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 
 export class DataReader {
-    static async read(filePath: string): Promise<number[]> {
+    static async read(filePath) {
         const content = await readFile(filePath, "utf-8");
 
         return content

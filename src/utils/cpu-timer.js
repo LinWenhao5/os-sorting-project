@@ -1,11 +1,7 @@
-
 import { performance } from "node:perf_hooks";
 
 export class CpuTimer {
-    static measure<T>(task: () => T): {
-        result: T;
-        elapsedMs: number;
-    } {
+    static measure(task) {
         const start = performance.now();
 
         const result = task();
