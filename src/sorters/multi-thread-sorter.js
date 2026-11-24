@@ -15,40 +15,23 @@ export class MultiThreadSorter extends BaseSorter {
                 workerData: task,
             });
 
-            let settled = false;
-
-            const fail = (error) => {
-                if (settled) return;
-
-                settled = true;
-                void worker.terminate();
-                reject(error);
-            };
-
-            worker.once("error", fail);
+            worker.once("error", reject);
 
             worker.once("message", (message) => {
-                if (settled) return;
-
-                if (!message.success || !message.result) {
-                    fail(
-                        new Error(
-                            message.error ?? "Thread task failed.",
-                        ),
+                if (!message.success) {
+                    reject(
+                        new Error(message.error ?? "Thread task failed."),
                     );
                     return;
                 }
 
-                settled = true;
                 resolve(message.result);
             });
 
             worker.once("exit", (code) => {
-                if (!settled) {
-                    fail(
-                        new Error(
-                            `Worker exited unexpectedly with code ${code}.`,
-                        ),
+                if (code !== 0) {
+                    reject(
+                        new Error(`Worker stopped with exit code ${code}.`),
                     );
                 }
             });
@@ -56,21 +39,6 @@ export class MultiThreadSorter extends BaseSorter {
     }
 
     async execute(numbers, k) {
-        if (!Number.isInteger(k) || k < 1) {
-            throw new Error("K must be a positive integer.");
-        }
-
-        if (numbers.length === 0) {
-            return [];
-        }
-
-        if (k > numbers.length) {
-            throw new Error(
-                "K cannot be greater than the number of input values.",
-            );
-        }
-
-        // Phase 1: K threads perform Bubble Sort concurrently.
         const chunks = splitArray(numbers, k);
 
         let current = await Promise.all(
@@ -82,7 +50,6 @@ export class MultiThreadSorter extends BaseSorter {
             ),
         );
 
-        // Phase 2: Merge sorted arrays using threads.
         while (current.length > 1) {
             const tasks = [];
 
@@ -98,7 +65,6 @@ export class MultiThreadSorter extends BaseSorter {
                         }),
                     );
                 } else {
-                    // Carry an unmatched array into the next round.
                     tasks.push(Promise.resolve(left));
                 }
             }

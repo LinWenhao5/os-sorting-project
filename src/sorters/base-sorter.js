@@ -11,11 +11,10 @@ export class BaseSorter {
 
         return {
             sortedNumbers,
-            elapsedMs: end - start,
+            cpuMs: end - start,
         };
     }
 
-    // 由子类实现具体的排序逻辑。
     async execute(_numbers, _k) {
         throw new Error("execute() must be implemented by a subclass.");
     }

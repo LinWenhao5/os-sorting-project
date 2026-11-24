@@ -2,6 +2,7 @@ import { DirectSorter } from "./direct-sorter.js";
 import { MultiProcessSorter } from "./multi-process-sorter.js";
 import { SingleProcessSorter } from "./single-process-sorter.js";
 import { MultiThreadSorter } from "./multi-thread-sorter.js";
+import { NativeSorter } from "./native-sorter.js";
 
 export function createSorter(mode) {
     switch (mode) {
@@ -16,6 +17,9 @@ export function createSorter(mode) {
 
         case 4:
             return new MultiThreadSorter();
+
+        case 5:
+            return new NativeSorter();
 
         default:
             throw new Error(`Unsupported sorting mode: ${mode}`);

@@ -1,12 +1,6 @@
 import { DataReader } from "./utils/data-loader.js";
 import { createSorter } from "./sorters/sorter-factory.js";
-
-const FILES = {
-    "1w": "input/input_1w.txt",
-    "10w": "input/input_10w.txt",
-    "50w": "input/input_50w.txt",
-    "100w": "input/input_100w.txt",
-};
+import { writeFile, mkdir } from "node:fs/promises";
 
 function getArgument(name, defaultValue) {
     const index = process.argv.indexOf(name);
@@ -26,47 +20,43 @@ function getArgument(name, defaultValue) {
 
 async function main() {
     const mode = Number(getArgument("--mode", "1"));
-    const size = getArgument("--size", "1w");
+    const inputName = getArgument("--input", "input_1w");
     const k = Number(getArgument("--k", "4"));
-
-    if (!Number.isInteger(mode) || mode < 1 || mode > 4) {
-        throw new Error("Mode must be between 1 and 4.");
-    }
-
-    if (!Number.isInteger(k) || k < 1) {
-        throw new Error("K must be a positive integer.");
-    }
-
-    const filePath = FILES[size];
-
-    if (!filePath) {
-        throw new Error(
-            `Unsupported size: ${size}. Use 1w, 10w, 50w or 100w.`,
-        );
-    }
+    const filePath = `input/${inputName}.txt`;
 
     const numbers = await DataReader.read(filePath);
-
-    const expectedSize = Number(size.replace("w", "")) * 10000;
-
-    if (numbers.length !== expectedSize) {
-        throw new Error(
-            `Expected ${expectedSize} numbers, but found ${numbers.length}.`,
-        );
-    }
 
     const sorter = createSorter(mode);
     const result = await sorter.run(numbers, k);
 
     console.log("Mode:", mode);
-    console.log("Data size:", size);
     console.log("Total count:", numbers.length);
     console.log("K:", k);
-    console.log("Elapsed time (ms):", result.elapsedMs.toFixed(2));
+    console.log("CPU ms (ms):", result.cpuMs.toFixed(2));
     console.log(
         "First 10 sorted numbers:",
         result.sortedNumbers.slice(0, 10),
     );
+
+    const outputDir = "output";
+
+    await mkdir(outputDir, { recursive: true });
+
+    const outputPath = `${outputDir}/${inputName}_output${mode}.txt`;
+
+    const resultLine = [
+        `CPU Time=${result.cpuMs.toFixed(2)} ms`,
+        `Output Time=${new Date().toISOString()}`
+    ].join("\n");
+
+    const outputContent = [
+        result.sortedNumbers.join("\n"),
+        resultLine,
+    ].join("\n");
+
+    await writeFile(outputPath, outputContent, "utf-8");
+
+    console.log("Sorted result and benchmark saved to:", outputPath);
 }
 
 main().catch((error) => {

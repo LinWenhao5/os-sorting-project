@@ -15,82 +15,40 @@ export class MultiProcessSorter extends BaseSorter {
                 this.workerPath,
                 [],
                 {
-                    execArgv: process.execArgv,
                     stdio: ["inherit", "inherit", "inherit", "ipc"],
                 },
             );
 
-            let settled = false;
+            child.once("error", reject);
 
-            const cleanup = () => {
+            child.once("message", (message) => {
                 if (child.connected) {
                     child.disconnect();
                 }
-            };
 
-            const fail = (error) => {
-                if (settled) return;
-
-                settled = true;
-                cleanup();
-                child.kill();
-
-                reject(error);
-            };
-
-            child.once("error", fail);
-
-            child.once("exit", (code, signal) => {
-                if (!settled) {
-                    fail(
-                        new Error(
-                            `Worker exited unexpectedly: code=${code}, signal=${signal}`,
-                        ),
-                    );
-                }
-            });
-
-            child.once("message", (message) => {
-                if (settled) return;
-
-                if (!message.success || !message.result) {
-                    fail(
-                        new Error(
-                            message.error ?? "Worker task failed.",
-                        ),
+                if (!message.success) {
+                    reject(
+                        new Error(message.error ?? "Worker task failed."),
                     );
                     return;
                 }
 
-                settled = true;
-                cleanup();
                 resolve(message.result);
             });
-
-            child.send(task, (error) => {
-                if (error) {
-                    fail(error);
+            
+            child.once("exit", (code) => {
+                if (code !== 0) {
+                    reject(
+                        new Error(`Worker stopped with exit code ${code}.`),
+                    );
                 }
             });
+
+            child.send(task);
         });
     }
 
     async execute(numbers, k) {
-        if (!Number.isInteger(k) || k < 1) {
-            throw new Error("K must be a positive integer.");
-        }
-
-        if (numbers.length === 0) {
-            return [];
-        }
-
-        if (k > numbers.length) {
-            throw new Error(
-                "K cannot be greater than the number of input values.",
-            );
-        }
-
-        // Phase 1: K processes independently perform Bubble Sort.
         const chunks = splitArray(numbers, k);
 
         let current = await Promise.all(
@@ -102,8 +60,6 @@ export class MultiProcessSorter extends BaseSorter {
             ),
         );
 
-        // Phase 2: Merge sorted chunks using child processes.
-        // Each round reduces the number of arrays until only one remains.
         while (current.length > 1) {
             const tasks = [];
 
@@ -119,7 +75,6 @@ export class MultiProcessSorter extends BaseSorter {
                         }),
                     );
                 } else {
-                    // Carry an unmatched array into the next round.
                     tasks.push(Promise.resolve(left));
                 }
             }
